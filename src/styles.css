@@ -383,23 +383,13 @@ h1 {
   transform: none;
 }
 
-.line-key {
-  flex: none;
-}
-
-.line-key line {
-  stroke-width: 2;
-  stroke-linecap: round;
-}
-
 .model-row > .mark,
 .model-row > .mark-img {
   justify-self: center;
 }
 
 .model-row[aria-selected="false"] > .mark,
-.model-row[aria-selected="false"] > .mark-img,
-.model-row[aria-selected="false"] .line-key {
+.model-row[aria-selected="false"] > .mark-img {
   opacity: 0.45;
 }
 
@@ -418,9 +408,6 @@ h1 {
 }
 
 .model-creator {
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
   font-size: 12px;
   color: var(--muted);
 }

@@ -148,19 +148,7 @@ export function ModelPicker({ families, colors, visible, defaultCount, isDefault
                   <CreatorMark name={f.creator.name} color={color.creatorSwatch} />
                   <span className="model-text">
                     <span className="model-name">{f.name}</span>
-                    <span className="model-creator">
-                      <svg className="line-key" width="14" height="8" aria-hidden>
-                        <line
-                          x1="1"
-                          x2="13"
-                          y1="4"
-                          y2="4"
-                          stroke={color.stroke}
-                          strokeDasharray={f.superseded ? "3 2" : undefined}
-                        />
-                      </svg>
-                      {f.creator.name}
-                    </span>
+                    <span className="model-creator">{f.creator.name}</span>
                   </span>
                   <span className="model-score">{f.best.intelligence.toFixed(1)}</span>
                 </button>
