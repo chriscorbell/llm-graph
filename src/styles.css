@@ -238,6 +238,7 @@ h1 {
 .popover-foot {
   display: flex;
   align-items: center;
+  justify-content: flex-end;
   gap: 6px;
   padding: 8px 8px 8px 16px;
   border-top: 1px solid var(--border);
@@ -245,6 +246,7 @@ h1 {
 
 .selected-count {
   margin-right: auto;
+  white-space: nowrap;
   font-size: 12px;
   color: var(--muted);
   font-variant-numeric: tabular-nums;
@@ -805,6 +807,13 @@ h1 {
   .chart {
     min-height: 380px;
     margin-top: 12px;
+  }
+}
+
+/* The trigger right above already shows the count; the footer needs the room for its buttons. */
+@media (max-width: 440px) {
+  .selected-count {
+    display: none;
   }
 }
 

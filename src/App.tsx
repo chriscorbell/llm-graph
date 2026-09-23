@@ -13,8 +13,8 @@ const PREFS_KEY = "llm-graph:prefs";
 
 interface Prefs {
   scale: ScaleMode;
-  /** "top" shows the highest scorers by default; "none" starts from an empty chart. */
-  base: "top" | "none";
+  /** "top" shows the highest scorers by default; "all" and "none" start from everything or nothing. */
+  base: "top" | "all" | "none";
   /** Explicit show/hide choices layered on top of the base, so new top models still appear. */
   overrides: Record<string, boolean>;
 }
@@ -50,7 +50,7 @@ export default function App() {
   }, [prefs]);
 
   const isDefault = useCallback(
-    (id: string, base: Prefs["base"]) => base === "top" && topIds.has(id),
+    (id: string, base: Prefs["base"]) => base === "all" || (base === "top" && topIds.has(id)),
     [topIds],
   );
 
@@ -73,6 +73,7 @@ export default function App() {
   );
   const reset = useCallback(() => setPrefs((p) => ({ ...p, base: "top", overrides: {} })), []);
   const clear = useCallback(() => setPrefs((p) => ({ ...p, base: "none", overrides: {} })), []);
+  const selectAll = useCallback(() => setPrefs((p) => ({ ...p, base: "all", overrides: {} })), []);
 
   return (
     <main className="page">
@@ -88,6 +89,7 @@ export default function App() {
             onToggle={toggle}
             onReset={reset}
             onClear={clear}
+            onSelectAll={selectAll}
             onHighlight={setHighlight}
           />
           <ScaleToggle value={prefs.scale} onChange={(scale) => setPrefs((p) => ({ ...p, scale }))} />

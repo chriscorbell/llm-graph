@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState, type KeyboardEvent } from "react";
-import { Check, ChevronDown, RotateCcw, Search, X } from "lucide-react";
+import { Check, CheckCheck, ChevronDown, RotateCcw, Search, X } from "lucide-react";
 import type { Family } from "../lib/families.ts";
 import type { SeriesColor } from "../lib/colors.ts";
 import { CreatorMark } from "./CreatorMark.tsx";
@@ -14,10 +14,11 @@ interface Props {
   onToggle: (id: string) => void;
   onReset: () => void;
   onClear: () => void;
+  onSelectAll: () => void;
   onHighlight: (id: string | null) => void;
 }
 
-export function ModelPicker({ families, colors, visible, defaultCount, isDefault, onToggle, onReset, onClear, onHighlight }: Props) {
+export function ModelPicker({ families, colors, visible, defaultCount, isDefault, onToggle, onReset, onClear, onSelectAll, onHighlight }: Props) {
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
   const rootRef = useRef<HTMLDivElement>(null);
@@ -160,13 +161,28 @@ export function ModelPicker({ families, colors, visible, defaultCount, isDefault
 
         <div className="popover-foot">
           <span className="selected-count">{visible.size} selected</span>
+          <button
+            type="button"
+            className="pill-button"
+            onClick={onSelectAll}
+            disabled={visible.size === families.length}
+          >
+            <CheckCheck size={14} strokeWidth={2} aria-hidden />
+            Select all
+          </button>
           <button type="button" className="pill-button" onClick={onClear} disabled={visible.size === 0}>
             <X size={14} strokeWidth={2} aria-hidden />
-            Clear all
+            Clear
           </button>
-          <button type="button" className="pill-button" onClick={onReset} disabled={isDefault}>
+          <button
+            type="button"
+            className="pill-button"
+            onClick={onReset}
+            disabled={isDefault}
+            title={`Back to the top ${defaultCount} models`}
+          >
             <RotateCcw size={14} strokeWidth={2} aria-hidden />
-            Reset to top {defaultCount}
+            Reset
           </button>
         </div>
       </div>
