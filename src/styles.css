@@ -43,8 +43,6 @@ button {
 }
 
 .page {
-  max-width: 1480px;
-  margin: 0 auto;
   padding: 28px 40px 24px;
   min-height: 100dvh;
   display: flex;
