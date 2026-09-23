@@ -145,20 +145,20 @@ export function ModelPicker({ families, colors, visible, defaultCount, isDefault
                   <span className="check" aria-hidden>
                     <Check size={12} strokeWidth={3} />
                   </span>
-                  <svg className="line-key" width="20" height="10" aria-hidden>
-                    <line
-                      x1="1"
-                      x2="19"
-                      y1="5"
-                      y2="5"
-                      stroke={color.stroke}
-                      strokeDasharray={f.superseded ? "4 3" : undefined}
-                    />
-                  </svg>
+                  <CreatorMark name={f.creator.name} color={color.creatorSwatch} />
                   <span className="model-text">
                     <span className="model-name">{f.name}</span>
                     <span className="model-creator">
-                      <CreatorMark name={f.creator.name} color={color.creatorSwatch} size={12} />
+                      <svg className="line-key" width="14" height="8" aria-hidden>
+                        <line
+                          x1="1"
+                          x2="13"
+                          y1="4"
+                          y2="4"
+                          stroke={color.stroke}
+                          strokeDasharray={f.superseded ? "3 2" : undefined}
+                        />
+                      </svg>
                       {f.creator.name}
                     </span>
                   </span>

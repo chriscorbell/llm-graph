@@ -379,11 +379,20 @@ h1 {
   transform: none;
 }
 
+.line-key {
+  flex: none;
+}
+
 .line-key line {
-  stroke-width: 2.5;
+  stroke-width: 2;
   stroke-linecap: round;
 }
 
+.model-row > .mark {
+  justify-self: center;
+}
+
+.model-row[aria-selected="false"] > .mark,
 .model-row[aria-selected="false"] .line-key {
   opacity: 0.45;
 }
