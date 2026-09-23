@@ -24,6 +24,14 @@ export function formatLogTick(v: number): string {
   return `$${v.toFixed(decimals)}`;
 }
 
-export function formatDate(iso: string): string {
-  return new Date(iso).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
+/** Date and time in the visitor's own time zone, e.g. "Sep 23, 2026, 5:05 PM EDT". */
+export function formatDateTime(iso: string): string {
+  return new Date(iso).toLocaleString("en-US", {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+    timeZoneName: "short",
+  });
 }

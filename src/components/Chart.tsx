@@ -245,7 +245,7 @@ export function Chart({ families, colors, scale, highlight, onReset }: Props) {
           </g>
 
           <text className="axis-title" x={plot.left} y={plot.top - 18}>
-            Intelligence Index
+            Intelligence score (benchmark aggregation)
           </text>
           <text className="axis-title" x={plot.left + plot.width / 2} y={height - 10} textAnchor="middle">
             Cost per task (USD)

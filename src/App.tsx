@@ -3,7 +3,7 @@ import data from "./data/models.json";
 import type { Dataset } from "./lib/types.ts";
 import { EFFORT_LABEL, groupFamilies } from "./lib/families.ts";
 import { assignColors } from "./lib/colors.ts";
-import { formatCost, formatDate } from "./lib/format.ts";
+import { formatCost, formatDateTime } from "./lib/format.ts";
 import { Chart, type ScaleMode } from "./components/Chart.tsx";
 import { ModelPicker } from "./components/ModelPicker.tsx";
 import { ScaleToggle } from "./components/ScaleToggle.tsx";
@@ -77,7 +77,7 @@ export default function App() {
   return (
     <main className="page">
       <header className="bar">
-        <h1>Intelligence Index vs cost per task</h1>
+        <h1>Model Index</h1>
         <div className="controls">
           <ModelPicker
             families={families}
@@ -96,13 +96,13 @@ export default function App() {
       <Chart families={visible} colors={colors} scale={prefs.scale} highlight={highlight} onReset={reset} />
 
       <footer className="foot">
-        <p>Each dot is one reasoning effort level, low to max. Dashed lines are older versions.</p>
+        <p>Each dot is a specific reasoning effort level. Dashed lines represent older models.</p>
         <p>
           Data from{" "}
           <a href="https://artificialanalysis.ai/" target="_blank" rel="noreferrer">
             Artificial Analysis
           </a>
-          , updated {formatDate(dataset.fetchedAt)}
+          , updated {formatDateTime(dataset.fetchedAt)}
         </p>
       </footer>
 
