@@ -411,6 +411,11 @@ h1 {
 .model-creator {
   font-size: 12px;
   color: var(--muted);
+  transition: color 0.15s ease;
+}
+
+.model-row[aria-selected="true"] .model-creator {
+  color: var(--text-2);
 }
 
 .model-row[aria-selected="false"] .model-name {
