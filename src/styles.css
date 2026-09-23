@@ -525,6 +525,10 @@ h1 {
   font-weight: 550;
 }
 
+.axis-note {
+  font-weight: 400;
+}
+
 .series {
   transition: opacity 0.22s ease;
 }

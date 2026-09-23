@@ -245,10 +245,10 @@ export function Chart({ families, colors, scale, highlight, onReset }: Props) {
           </g>
 
           <text className="axis-title" x={plot.left} y={plot.top - 18}>
-            Intelligence score (benchmark aggregation)
+            Intelligence score <tspan className="axis-note">(multi-benchmark aggregation)</tspan>
           </text>
           <text className="axis-title" x={plot.left + plot.width / 2} y={height - 10} textAnchor="middle">
-            Cost per task (USD)
+            Cost per task <tspan className="axis-note">(USD)</tspan>
           </text>
 
           <g clipPath="url(#plot-clip)">
