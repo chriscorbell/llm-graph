@@ -125,19 +125,27 @@ h1 {
   transform: rotate(180deg);
 }
 
-.swatch-stack {
+.mark-stack {
   display: inline-flex;
+  align-items: center;
+  gap: 6px;
 }
 
-.swatch-stack span {
-  width: 12px;
-  height: 12px;
+.mark {
+  flex: none;
+  display: inline-block;
+  width: var(--mark-size);
+  height: var(--mark-size);
+  background-color: var(--mark-color);
+  -webkit-mask: var(--mark-logo) center / contain no-repeat;
+  mask: var(--mark-logo) center / contain no-repeat;
+}
+
+.mark-dot {
+  -webkit-mask: none;
+  mask: none;
   border-radius: 50%;
-  box-shadow: 0 0 0 2px var(--surface);
-}
-
-.swatch-stack span + span {
-  margin-left: -3px;
+  transform: scale(0.7);
 }
 
 .popover {
@@ -395,6 +403,9 @@ h1 {
 }
 
 .model-creator {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
   font-size: 12px;
   color: var(--muted);
 }
@@ -790,7 +801,7 @@ h1 {
 }
 
 @media (max-width: 400px) {
-  .swatch-stack {
+  .mark-stack {
     display: none;
   }
 }

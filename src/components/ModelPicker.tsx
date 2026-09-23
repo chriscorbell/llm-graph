@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState, type KeyboardEvent } from "react"
 import { Check, ChevronDown, RotateCcw, Search, X } from "lucide-react";
 import type { Family } from "../lib/families.ts";
 import type { SeriesColor } from "../lib/colors.ts";
+import { CreatorMark } from "./CreatorMark.tsx";
 
 interface Props {
   families: Family[];
@@ -47,12 +48,14 @@ export function ModelPicker({ families, colors, visible, defaultCount, isDefault
     return families.filter((f) => f.name.toLowerCase().includes(q) || f.creator.name.toLowerCase().includes(q));
   }, [families, query]);
 
-  const creatorSwatches = useMemo(() => {
-    const seen = new Map<string, string>();
+  const visibleCreators = useMemo(() => {
+    const seen = new Map<string, { name: string; color: string }>();
     for (const f of families) {
-      if (visible.has(f.id) && !seen.has(f.creator.id)) seen.set(f.creator.id, colors.get(f.id)!.creatorSwatch);
+      if (visible.has(f.id) && !seen.has(f.creator.id)) {
+        seen.set(f.creator.id, { name: f.creator.name, color: colors.get(f.id)!.creatorSwatch });
+      }
     }
-    return [...seen.values()].slice(0, 4);
+    return [...seen.entries()].slice(0, 4);
   }, [families, visible, colors]);
 
   function onKeyDown(e: KeyboardEvent) {
@@ -86,10 +89,10 @@ export function ModelPicker({ families, colors, visible, defaultCount, isDefault
         aria-haspopup="dialog"
         onClick={() => setOpen((o) => !o)}
       >
-        {creatorSwatches.length > 0 && (
-          <span className="swatch-stack" aria-hidden>
-            {creatorSwatches.map((c) => (
-              <span key={c} style={{ background: c }} />
+        {visibleCreators.length > 0 && (
+          <span className="mark-stack" aria-hidden>
+            {visibleCreators.map(([id, c]) => (
+              <CreatorMark key={id} name={c.name} color={c.color} />
             ))}
           </span>
         )}
@@ -154,7 +157,10 @@ export function ModelPicker({ families, colors, visible, defaultCount, isDefault
                   </svg>
                   <span className="model-text">
                     <span className="model-name">{f.name}</span>
-                    <span className="model-creator">{f.creator.name}</span>
+                    <span className="model-creator">
+                      <CreatorMark name={f.creator.name} color={color.creatorSwatch} size={12} />
+                      {f.creator.name}
+                    </span>
                   </span>
                   <span className="model-score">{f.best.intelligence.toFixed(1)}</span>
                 </button>
