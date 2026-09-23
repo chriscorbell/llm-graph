@@ -402,6 +402,7 @@ h1 {
 .model-name {
   font-size: 14px;
   font-weight: 500;
+  transition: color 0.15s ease;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -409,6 +410,10 @@ h1 {
 
 .model-creator {
   font-size: 12px;
+  color: var(--muted);
+}
+
+.model-row[aria-selected="false"] .model-name {
   color: var(--muted);
 }
 
