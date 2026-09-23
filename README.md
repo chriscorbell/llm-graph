@@ -1,5 +1,7 @@
 # LLM Graph
 
+**Live at [models.chriscorbell.com](https://models.chriscorbell.com)**
+
 A single-page chart of LLMs by [Artificial Analysis](https://artificialanalysis.ai/) Intelligence Index against cost per task. Each line is one model and each dot on it is a reasoning effort level. The 10 highest-scoring models show by default. Use the model menu to show or hide others.
 
 ## How data gets in
@@ -24,7 +26,7 @@ pnpm dev
 
 ## Deployment
 
-Cloudflare Pages builds the site from this repo through its GitHub integration: pushes to `main` go to production and other branches get preview URLs.
+Cloudflare Pages builds the site from this repo through its GitHub integration: pushes to `main` go to production at models.chriscorbell.com (also llm-graph.pages.dev) and other branches get preview URLs.
 
 Pages build settings:
 
