@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState, type KeyboardEvent } from "react";
-import { Check, ChevronDown, Search, X } from "lucide-react";
+import { Check, ChevronDown, RotateCcw, Search, X } from "lucide-react";
 import type { Family } from "../lib/families.ts";
 import type { SeriesColor } from "../lib/colors.ts";
 
@@ -8,13 +8,15 @@ interface Props {
   colors: Map<string, SeriesColor>;
   visible: Set<string>;
   defaultCount: number;
+  /** Selection is exactly the default top models, so resetting would do nothing. */
+  isDefault: boolean;
   onToggle: (id: string) => void;
   onReset: () => void;
   onClear: () => void;
   onHighlight: (id: string | null) => void;
 }
 
-export function ModelPicker({ families, colors, visible, defaultCount, onToggle, onReset, onClear, onHighlight }: Props) {
+export function ModelPicker({ families, colors, visible, defaultCount, isDefault, onToggle, onReset, onClear, onHighlight }: Props) {
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
   const rootRef = useRef<HTMLDivElement>(null);
@@ -117,17 +119,9 @@ export function ModelPicker({ families, colors, visible, defaultCount, onToggle,
           )}
         </label>
 
-        <div className="popover-bar">
+        <div className="popover-head" aria-hidden>
           <span>Model</span>
-          <span className="popover-actions">
-            <button type="button" className="text-button" onClick={onReset}>
-              Top {defaultCount}
-            </button>
-            <button type="button" className="text-button" onClick={onClear} disabled={visible.size === 0}>
-              Clear
-            </button>
-          </span>
-          <span className="popover-score-head">Index</span>
+          <span>Score</span>
         </div>
 
         <ul className="model-list" ref={listRef} role="listbox" aria-multiselectable onPointerLeave={() => onHighlight(null)}>
@@ -169,6 +163,18 @@ export function ModelPicker({ families, colors, visible, defaultCount, onToggle,
           })}
           {filtered.length === 0 && <li className="no-results">No models match "{query}"</li>}
         </ul>
+
+        <div className="popover-foot">
+          <span className="selected-count">{visible.size} selected</span>
+          <button type="button" className="pill-button" onClick={onClear} disabled={visible.size === 0}>
+            <X size={14} strokeWidth={2} aria-hidden />
+            Clear all
+          </button>
+          <button type="button" className="pill-button" onClick={onReset} disabled={isDefault}>
+            <RotateCcw size={14} strokeWidth={2} aria-hidden />
+            Reset to top {defaultCount}
+          </button>
+        </div>
       </div>
     </div>
   );

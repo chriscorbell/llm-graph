@@ -84,6 +84,7 @@ export default function App() {
             colors={colors}
             visible={visibleIds}
             defaultCount={DEFAULT_COUNT}
+            isDefault={prefs.base === "top" && Object.keys(prefs.overrides).length === 0}
             onToggle={toggle}
             onReset={reset}
             onClear={clear}
