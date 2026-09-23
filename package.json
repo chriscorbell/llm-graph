@@ -21,7 +21,8 @@
     "d3-scale": "^4.0.2",
     "lucide-react": "^1.47.0",
     "react": "^19.3.0",
-    "react-dom": "^19.3.0"
+    "react-dom": "^19.3.0",
+    "simple-icons": "16.32.0"
   },
   "devDependencies": {
     "@types/d3-scale": "^4.0.9",
