@@ -4,7 +4,7 @@ A single-page chart of LLMs by [Artificial Analysis](https://artificialanalysis.
 
 ## How data gets in
 
-There is no backend. `scripts/fetch-data.ts` pulls every model from the Artificial Analysis free API, and the build bakes that data into the site. GitHub Actions rebuilds and redeploys every 4 hours, so new models show up without code changes.
+There is no backend. `pnpm build` runs `scripts/fetch-data.ts`, which pulls every model from the Artificial Analysis free API, and the build bakes that data into the site. A scheduled GitHub Action triggers a fresh Cloudflare Pages build every 4 hours, so new models show up without code changes.
 
 Grouping is automatic. Effort variants like `GPT-6 Astra (xhigh)` merge into one line, and a model is drawn dashed when a newer version of the same product line exists. See `src/lib/families.ts`.
 
@@ -20,16 +20,19 @@ pnpm install
 pnpm dev
 ```
 
-`pnpm dev` fetches data first and reuses it for 6 hours. Run `pnpm fetch-data --force` to refresh it sooner.
+`pnpm dev` and `pnpm build` fetch data first and reuse it for 6 hours locally. Run `pnpm fetch-data --force` to refresh it sooner.
 
 ## Deployment
 
-`.github/workflows/deploy.yml` builds and deploys to the Cloudflare Pages project `llm-graph`. It runs on pushes to `main`, on pull requests (as preview deployments) and on the 4-hour schedule. The first run creates the Pages project.
+Cloudflare Pages builds the site from this repo through its GitHub integration: pushes to `main` go to production and other branches get preview URLs.
 
-Repository secrets:
+Pages build settings:
 
-| Secret | Value |
+| Setting | Value |
 | --- | --- |
-| `AA_KEY` | Artificial Analysis API key |
-| `CLOUDFLARE_API_TOKEN` | Token with Account > Cloudflare Pages > Edit |
-| `CLOUDFLARE_ACCOUNT_ID` | Cloudflare account ID |
+| Build command | `pnpm build` |
+| Output directory | `dist` |
+| `PNPM_VERSION` | `11.25.0` |
+| `AA_KEY` (encrypted) | Artificial Analysis API key |
+
+`.github/workflows/refresh.yml` posts to a Pages deploy hook every 4 hours to pick up new data. It needs the hook URL in the `CF_DEPLOY_HOOK` repository secret. `.github/workflows/ci.yml` runs the tests on pushes and pull requests.
