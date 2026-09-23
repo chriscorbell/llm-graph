@@ -1,0 +1,67 @@
+name: Deploy
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  # Artificial Analysis data is baked in at build time, so rebuild regularly to pick up new models.
+  # 6 runs/day x 4 API pages stays well under the free tier's 100 requests/day.
+  schedule:
+    - cron: "17 */4 * * *"
+  workflow_dispatch:
+
+concurrency:
+  group: deploy-${{ github.head_ref || github.ref_name }}
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    permissions:
+      actions: write
+      contents: read
+      deployments: write
+    env:
+      HAS_CLOUDFLARE: ${{ secrets.CLOUDFLARE_API_TOKEN != '' }}
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: pnpm/action-setup@v6
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      - name: Fetch Artificial Analysis data
+        run: pnpm fetch-data
+        env:
+          AA_KEY: ${{ secrets.AA_KEY }}
+
+      - run: pnpm test
+
+      - run: pnpm build
+
+      - name: Deploy to Cloudflare Pages
+        if: env.HAS_CLOUDFLARE == 'true'
+        uses: cloudflare/wrangler-action@v4
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          # creates the Pages project on the first run; a no-op error afterwards
+          preCommands: wrangler pages project create llm-graph --production-branch=main || true
+          command: pages deploy dist --project-name=llm-graph --branch=${{ github.head_ref || github.ref_name }}
+          gitHubToken: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Warn about missing Cloudflare secrets
+        if: env.HAS_CLOUDFLARE != 'true'
+        run: echo "::warning::CLOUDFLARE_API_TOKEN is not set, so the deploy was skipped"
+
+      # Public repos pause scheduled workflows after 60 days without commits; re-enabling resets the timer.
+      - name: Keep the schedule alive
+        if: github.event_name == 'schedule'
+        run: gh workflow enable deploy.yml --repo "$GITHUB_REPOSITORY"
+        env:
+          GH_TOKEN: ${{ github.token }}
