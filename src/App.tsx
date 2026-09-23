@@ -107,29 +107,32 @@ export default function App() {
         </p>
       </footer>
 
-      <table className="sr-only">
-        <caption>Selected models by reasoning effort</caption>
-        <thead>
-          <tr>
-            <th scope="col">Model</th>
-            <th scope="col">Effort</th>
-            <th scope="col">Intelligence Index</th>
-            <th scope="col">Cost per task</th>
-          </tr>
-        </thead>
-        <tbody>
-          {visible.flatMap((f) =>
-            f.variants.map((v) => (
-              <tr key={v.id}>
-                <th scope="row">{f.name}</th>
-                <td>{v.effort ? EFFORT_LABEL[v.effort] : "Default"}</td>
-                <td>{v.intelligence.toFixed(1)}</td>
-                <td>{formatCost(v.costPerTask)}</td>
-              </tr>
-            )),
-          )}
-        </tbody>
-      </table>
+      {/* Tables ignore width/height/overflow, so the visually-hidden wrapper does the clipping. */}
+      <div className="sr-only">
+        <table>
+          <caption>Selected models by reasoning effort</caption>
+          <thead>
+            <tr>
+              <th scope="col">Model</th>
+              <th scope="col">Effort</th>
+              <th scope="col">Intelligence Index</th>
+              <th scope="col">Cost per task</th>
+            </tr>
+          </thead>
+          <tbody>
+            {visible.flatMap((f) =>
+              f.variants.map((v) => (
+                <tr key={v.id}>
+                  <th scope="row">{f.name}</th>
+                  <td>{v.effort ? EFFORT_LABEL[v.effort] : "Default"}</td>
+                  <td>{v.intelligence.toFixed(1)}</td>
+                  <td>{formatCost(v.costPerTask)}</td>
+                </tr>
+              )),
+            )}
+          </tbody>
+        </table>
+      </div>
     </main>
   );
 }

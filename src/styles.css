@@ -477,16 +477,20 @@ h1 {
 
 /* Chart */
 
+/* Fills the space between header and footer. The SVG is absolutely positioned so its
+   measured size never props the container open when the window shrinks. */
 .chart {
   position: relative;
   flex: 1;
-  height: clamp(440px, calc(100dvh - 176px), 940px);
+  min-height: 440px;
   margin-top: 20px;
   touch-action: pan-y;
   animation: fade 0.8s ease 0.1s both;
 }
 
 .chart-svg {
+  position: absolute;
+  inset: 0;
   display: block;
   overflow: visible;
   user-select: none;
@@ -797,7 +801,7 @@ h1 {
   }
 
   .chart {
-    height: clamp(380px, 68dvh, 620px);
+    min-height: 380px;
     margin-top: 12px;
   }
 }
