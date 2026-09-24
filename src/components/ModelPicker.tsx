@@ -97,8 +97,9 @@ export function ModelPicker({ families, colors, visible, defaultCount, isDefault
             ))}
           </span>
         )}
-        <span>
-          {visible.size} of {families.length} models
+        <span className="picker-label">
+          {visible.size} of {families.length}
+          <span className="picker-noun"> models</span>
         </span>
         <ChevronDown size={16} strokeWidth={2} className="chevron" aria-hidden />
       </button>

@@ -114,7 +114,14 @@ h1 {
   transform: scale(0.98);
 }
 
+.picker-label {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
 .chevron {
+  flex: none;
   color: var(--text-2);
   transition: transform 0.25s var(--ease-out);
 }
@@ -439,10 +446,12 @@ h1 {
 
 /* Scale toggle */
 
+/* Never squeezed: if it shrinks below its content the halves go unequal and the thumb misaligns. */
 .segmented {
   position: relative;
   display: grid;
   grid-template-columns: 1fr 1fr;
+  min-width: max-content;
   padding: 3px;
 }
 
@@ -792,7 +801,7 @@ h1 {
 
   .controls {
     display: grid;
-    grid-template-columns: 1fr auto;
+    grid-template-columns: minmax(0, 1fr) auto;
   }
 
   .picker-trigger {
@@ -827,7 +836,13 @@ h1 {
   }
 }
 
-@media (max-width: 400px) {
+@media (max-width: 360px) {
+  .picker-noun {
+    display: none;
+  }
+}
+
+@media (max-width: 460px) {
   .mark-stack {
     display: none;
   }
