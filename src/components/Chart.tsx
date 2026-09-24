@@ -20,6 +20,8 @@ const LABEL_FONT = '500 13px "Geist Variable", system-ui, sans-serif';
 const LABEL_HEIGHT = 16;
 const HOVER_RADIUS = 40;
 const TIP_WIDTH = 236;
+/** Approximate advance of a 12px Geist Mono character, for keeping tick labels in bounds. */
+const TICK_CHAR_WIDTH = 7.3;
 
 interface Domain {
   lin: [number, number];
@@ -123,6 +125,11 @@ export function Chart({ families, colors, scale, highlight, onReset }: Props) {
   const logTickValues = logTicks(domain.log, Math.max(4, Math.round(plot.width / 70)));
   const yTicks = scaleLinear().domain(domain.y).ticks(Math.max(3, Math.round(plot.height / 90)));
   const mix = current[6];
+  // Edge labels shift inward rather than running off the side of the chart.
+  const tickX = (x: number, label: string) => {
+    const half = (label.length * TICK_CHAR_WIDTH) / 2 + 2;
+    return Math.min(Math.max(x, half), width - half);
+  };
 
   // Label layout is solved once for the destination state, then rides along with the animation.
   const targetKey = target.join(",");
@@ -222,7 +229,7 @@ export function Chart({ families, colors, scale, highlight, onReset }: Props) {
                   return (
                     <g key={`l${t}`} className="tick-in" opacity={1 - mix}>
                       <line x1={x} x2={x} y1={plot.top} y2={plot.top + plot.height} />
-                      <text x={x} y={plot.top + plot.height + 22} textAnchor="middle" className="tick">
+                      <text x={tickX(x, formatTick(t, linStep))} y={plot.top + plot.height + 22} textAnchor="middle" className="tick">
                         {formatTick(t, linStep)}
                       </text>
                     </g>
@@ -234,7 +241,7 @@ export function Chart({ families, colors, scale, highlight, onReset }: Props) {
                   return (
                     <g key={`g${t}`} className="tick-in" opacity={mix}>
                       <line x1={x} x2={x} y1={plot.top} y2={plot.top + plot.height} />
-                      <text x={x} y={plot.top + plot.height + 22} textAnchor="middle" className="tick">
+                      <text x={tickX(x, formatLogTick(t))} y={plot.top + plot.height + 22} textAnchor="middle" className="tick">
                         {formatLogTick(t)}
                       </text>
                     </g>

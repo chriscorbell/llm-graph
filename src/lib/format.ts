@@ -13,14 +13,14 @@ export function formatWhole(v: number): string {
   return `$${Math.round(v).toLocaleString("en-US")}`;
 }
 
-/** Axis tick label; decimals follow the tick spacing so labels stay short. */
+/** Axis tick label: two decimals, more only when ticks are finer than a cent. */
 export function formatTick(v: number, step: number): string {
-  const decimals = step >= 1 ? 0 : Math.min(4, Math.ceil(-Math.log10(step) - 1e-9));
+  const decimals = step >= 1 ? 2 : Math.min(4, Math.max(2, Math.ceil(-Math.log10(step) - 1e-9)));
   return `$${v.toFixed(decimals)}`;
 }
 
 export function formatLogTick(v: number): string {
-  const decimals = v >= 1 ? 0 : Math.ceil(-Math.log10(v) - 1e-9);
+  const decimals = v >= 1 ? 2 : Math.max(2, Math.ceil(-Math.log10(v) - 1e-9));
   return `$${v.toFixed(decimals)}`;
 }
 
