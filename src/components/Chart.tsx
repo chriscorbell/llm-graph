@@ -1,5 +1,6 @@
 import { useMemo, useRef, useState, type CSSProperties, type PointerEvent } from "react";
 import { scaleLinear } from "d3-scale";
+import { RotateCcw } from "lucide-react";
 import { EFFORT_LABEL, type Family } from "../lib/families.ts";
 import type { SeriesColor } from "../lib/colors.ts";
 import { placeLabels, type Point } from "../lib/labels.ts";
@@ -362,7 +363,8 @@ export function Chart({ families, colors, scale, highlight, onReset }: Props) {
       {families.length === 0 && (
         <div className="empty">
           <p>No models selected</p>
-          <button type="button" className="text-button" onClick={onReset}>
+          <button type="button" className="pill-button" onClick={onReset}>
+            <RotateCcw size={14} strokeWidth={2} aria-hidden />
             Show top 10
           </button>
         </div>

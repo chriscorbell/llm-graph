@@ -735,17 +735,21 @@ h1 {
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 6px;
+  gap: 14px;
   animation: fade 0.3s ease both;
 }
 
 .empty p {
   margin: 0;
-  color: var(--text-2);
+  color: var(--muted);
   font-size: 15px;
 }
 
-.empty .text-button {
+.empty .pill-button {
+  height: 36px;
+  padding: 0 16px 0 14px;
+  background: var(--surface);
+  border-color: var(--border-strong);
   font-size: 14px;
 }
 
