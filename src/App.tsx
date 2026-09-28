@@ -13,7 +13,7 @@ const PREFS_KEY = "llm-graph:prefs";
 
 interface Prefs {
   scale: ScaleMode;
-  /** "top" shows the highest scorers by default; "all" and "none" start from everything or nothing. */
+  /** "top" shows the highest-scoring current models by default; "all" and "none" start from everything or nothing. */
   base: "top" | "all" | "none";
   /** Explicit show/hide choices layered on top of the base, so new top models still appear. */
   overrides: Record<string, boolean>;
@@ -36,7 +36,10 @@ const dataset = data as Dataset;
 export default function App() {
   const families = useMemo(() => groupFamilies(dataset.models), []);
   const colors = useMemo(() => assignColors(families), [families]);
-  const topIds = useMemo(() => new Set(families.slice(0, DEFAULT_COUNT).map((f) => f.id)), [families]);
+  const topIds = useMemo(
+    () => new Set(families.filter((f) => !f.superseded).slice(0, DEFAULT_COUNT).map((f) => f.id)),
+    [families],
+  );
 
   const [prefs, setPrefs] = useState(loadPrefs);
   const [highlight, setHighlight] = useState<string | null>(null);

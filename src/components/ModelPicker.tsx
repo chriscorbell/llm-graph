@@ -180,7 +180,7 @@ export function ModelPicker({ families, colors, visible, defaultCount, isDefault
             className="pill-button"
             onClick={onReset}
             disabled={isDefault}
-            title={`Back to the top ${defaultCount} models`}
+            title={`Back to the top ${defaultCount} current models`}
           >
             <RotateCcw size={14} strokeWidth={2} aria-hidden />
             Reset
