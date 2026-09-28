@@ -2,7 +2,7 @@
 
 **Live at [models.chriscorbell.com](https://models.chriscorbell.com)**
 
-A single-page chart of LLMs by [Artificial Analysis](https://artificialanalysis.ai/) Intelligence Index against cost per task. Each line is one model and each dot on it is a reasoning effort level. The 10 highest-scoring models show by default. Use the model menu to show or hide others.
+A single-page chart of LLMs by [Artificial Analysis](https://artificialanalysis.ai/) Intelligence Index against cost per task. Each line is one model and each dot on it is a reasoning effort level. The 10 highest-scoring current models show by default, leaving out ones that have a newer version. Use the model menu to show or hide others.
 
 ## How data gets in
 
