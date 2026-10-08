@@ -1,7 +1,7 @@
 import { useMemo, useRef, useState, type CSSProperties, type PointerEvent } from "react";
 import { scaleLinear } from "d3-scale";
 import { RotateCcw } from "lucide-react";
-import { EFFORT_LABEL, type Family } from "../lib/families.ts";
+import { EFFORT_LABEL, type Family, type Variant } from "../lib/families.ts";
 import type { SeriesColor } from "../lib/colors.ts";
 import { placeLabels, type Point } from "../lib/labels.ts";
 import { useFontsReady, usePresence, useSize, useTween } from "../lib/hooks.ts";
@@ -13,6 +13,8 @@ interface Props {
   families: Family[];
   colors: Map<string, SeriesColor>;
   scale: ScaleMode;
+  /** Pareto-optimal variants, cheapest first. Empty when the frontier is off. */
+  frontier: Variant[];
   highlight: string | null;
   onReset: () => void;
 }
@@ -78,6 +80,8 @@ function makeMapper(
   };
 }
 
+const linePath = (pts: Point[]) => pts.map((p, j) => `${j ? "L" : "M"}${p.x.toFixed(1)},${p.y.toFixed(1)}`).join("");
+
 /** Beside the point when there's room, otherwise above or below it (narrow screens). */
 function tooltipPlacement(p: Point, width: number, height: number) {
   const vertical = Math.min(Math.max(p.y, 90), height - 90);
@@ -95,7 +99,7 @@ function measure(text: string): number {
   return Math.ceil(measureCtx.measureText(text).width);
 }
 
-export function Chart({ families, colors, scale, highlight, onReset }: Props) {
+export function Chart({ families, colors, scale, frontier, highlight, onReset }: Props) {
   const wrapRef = useRef<HTMLDivElement>(null);
   const { width, height } = useSize(wrapRef);
   const fontsReady = useFontsReady();
@@ -119,6 +123,9 @@ export function Chart({ families, colors, scale, highlight, onReset }: Props) {
   // Stagger the entrance only on first load; later toggles animate immediately.
   const mountedAt = useRef(performance.now());
   const stagger = (i: number) => (performance.now() - mountedAt.current < 1500 ? i : 0);
+
+  // Keyed by its points, so a changed frontier draws in fresh while the old one fades out.
+  const frontierPaths = usePresence(frontier.length > 1 ? [{ id: frontier.map((v) => v.id).join("|"), points: frontier }] : []);
 
   const xTickCount = Math.max(3, Math.round(plot.width / 110));
   const linTicks = scaleLinear().domain(domain.lin).ticks(xTickCount);
@@ -260,11 +267,19 @@ export function Chart({ families, colors, scale, highlight, onReset }: Props) {
           </text>
 
           <g clipPath="url(#plot-clip)">
+            {frontierPaths.map(({ item, exiting }) => (
+              <path
+                key={item.id}
+                className={`frontier${exiting ? " exiting" : ""}`}
+                d={linePath(item.points.map((v) => map(v.costPerTask, v.intelligence)))}
+                pathLength={1}
+              />
+            ))}
             {series.map(({ item: f, exiting }, i) => {
               const color = colors.get(f.id);
               if (!color) return null;
               const pts = f.variants.map((v) => map(v.costPerTask, v.intelligence));
-              const d = pts.map((p, j) => `${j ? "L" : "M"}${p.x.toFixed(1)},${p.y.toFixed(1)}`).join("");
+              const d = linePath(pts);
               const isFocus = focus === f.id;
               return (
                 <g
