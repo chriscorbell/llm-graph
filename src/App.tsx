@@ -3,23 +3,27 @@ import data from "./data/models.json";
 import type { Dataset } from "./lib/types.ts";
 import { EFFORT_LABEL, groupFamilies } from "./lib/families.ts";
 import { assignColors } from "./lib/colors.ts";
+import { paretoFrontier } from "./lib/pareto.ts";
 import { formatCost, formatDateTime } from "./lib/format.ts";
 import { Chart, type ScaleMode } from "./components/Chart.tsx";
 import { ModelPicker } from "./components/ModelPicker.tsx";
 import { ScaleToggle } from "./components/ScaleToggle.tsx";
+import { ParetoToggle } from "./components/ParetoToggle.tsx";
 
 const DEFAULT_COUNT = 10;
 const PREFS_KEY = "llm-graph:prefs";
 
 interface Prefs {
   scale: ScaleMode;
+  /** Trace the Pareto frontier across the visible models. */
+  pareto: boolean;
   /** "top" shows the highest-scoring current models by default; "all" and "none" start from everything or nothing. */
   base: "top" | "all" | "none";
   /** Explicit show/hide choices layered on top of the base, so new top models still appear. */
   overrides: Record<string, boolean>;
 }
 
-const DEFAULT_PREFS: Prefs = { scale: "linear", base: "top", overrides: {} };
+const DEFAULT_PREFS: Prefs = { scale: "linear", pareto: false, base: "top", overrides: {} };
 
 function loadPrefs(): Prefs {
   try {
@@ -62,6 +66,11 @@ export default function App() {
     [families, prefs.overrides, prefs.base, isDefault],
   );
   const visible = useMemo(() => families.filter((f) => visibleIds.has(f.id)), [families, visibleIds]);
+  const frontier = useMemo(
+    () => (prefs.pareto ? paretoFrontier(visible.flatMap((f) => f.variants)) : []),
+    [visible, prefs.pareto],
+  );
+  const frontierIds = new Set(frontier.map((v) => v.id));
 
   const toggle = useCallback(
     (id: string) =>
@@ -95,14 +104,25 @@ export default function App() {
             onSelectAll={selectAll}
             onHighlight={setHighlight}
           />
+          <ParetoToggle value={prefs.pareto} onChange={(pareto) => setPrefs((p) => ({ ...p, pareto }))} />
           <ScaleToggle value={prefs.scale} onChange={(scale) => setPrefs((p) => ({ ...p, scale }))} />
         </div>
       </header>
 
-      <Chart families={visible} colors={colors} scale={prefs.scale} highlight={highlight} onReset={reset} />
+      <Chart
+        families={visible}
+        colors={colors}
+        scale={prefs.scale}
+        frontier={frontier}
+        highlight={highlight}
+        onReset={reset}
+      />
 
       <footer className="foot">
-        <p>Each dot is a specific reasoning effort level. Dashed lines represent older models.</p>
+        <p>
+          Each dot is a specific reasoning effort level. Dashed lines represent older models.
+          {prefs.pareto && " The gray band traces the Pareto frontier."}
+        </p>
         <p>
           Data from{" "}
           <a href="https://artificialanalysis.ai/" target="_blank" rel="noreferrer">
@@ -122,6 +142,7 @@ export default function App() {
               <th scope="col">Effort</th>
               <th scope="col">Intelligence Index</th>
               <th scope="col">Cost per task</th>
+              {prefs.pareto && <th scope="col">On Pareto frontier</th>}
             </tr>
           </thead>
           <tbody>
@@ -132,6 +153,7 @@ export default function App() {
                   <td>{v.effort ? EFFORT_LABEL[v.effort] : "Default"}</td>
                   <td>{v.intelligence.toFixed(1)}</td>
                   <td>{formatCost(v.costPerTask)}</td>
+                  {prefs.pareto && <td>{frontierIds.has(v.id) ? "Yes" : "No"}</td>}
                 </tr>
               )),
             )}

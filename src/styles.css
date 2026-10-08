@@ -494,6 +494,60 @@ h1 {
   transform: translateX(100%);
 }
 
+/* Pareto toggle */
+
+.toggle {
+  isolation: isolate;
+  padding: 3px;
+  cursor: pointer;
+}
+
+.toggle-face {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  height: 100%;
+  padding: 0 14px 0 12px;
+  border-radius: 999px;
+  font-size: 14px;
+  font-weight: 550;
+  color: var(--muted);
+  transition:
+    color 0.2s ease,
+    transform 0.1s ease;
+}
+
+/* Same thumb as the scale toggle, grown in from the center when pressed. */
+.toggle-face::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  border-radius: inherit;
+  background: #2a2a2e;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06);
+  opacity: 0;
+  transform: scale(0.8);
+  transition:
+    opacity 0.2s ease,
+    transform 0.35s var(--ease-out);
+}
+
+.toggle:hover .toggle-face,
+.toggle[aria-pressed="true"] .toggle-face {
+  color: var(--text);
+}
+
+.toggle[aria-pressed="true"] .toggle-face::before {
+  opacity: 1;
+  transform: none;
+}
+
+.toggle:active .toggle-face {
+  transform: scale(0.97);
+}
+
 /* Chart */
 
 /* Fills the space between header and footer. The SVG is absolutely positioned so its
@@ -553,6 +607,25 @@ h1 {
 
 .series {
   transition: opacity 0.22s ease;
+}
+
+.frontier {
+  fill: none;
+  stroke: #fff;
+  stroke-opacity: 0.1;
+  stroke-width: 14;
+  stroke-linejoin: round;
+  stroke-linecap: round;
+  transition: opacity 0.26s ease;
+}
+
+.chart-svg[data-focus] .frontier {
+  opacity: 0.4;
+}
+
+.frontier.exiting,
+.chart-svg[data-focus] .frontier.exiting {
+  opacity: 0;
 }
 
 .line {
@@ -625,6 +698,10 @@ h1 {
   .line.dashed {
     animation: fade 0.8s ease backwards;
     animation-delay: calc(var(--i) * 55ms);
+  }
+
+  .frontier:not(.exiting) {
+    animation: draw 0.9s var(--ease-out) backwards;
   }
 
   .dot {
@@ -806,7 +883,7 @@ h1 {
 
   .controls {
     display: grid;
-    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-columns: minmax(0, 1fr) auto auto;
   }
 
   .picker-trigger {
@@ -834,21 +911,20 @@ h1 {
   }
 }
 
+/* Too narrow for all three controls in a row: the picker takes its own. */
+@media (max-width: 579px) {
+  .controls {
+    grid-template-columns: auto minmax(0, 1fr);
+  }
+
+  .picker {
+    grid-column: 1 / -1;
+  }
+}
+
 /* The trigger right above already shows the count; the footer needs the room for its buttons. */
 @media (max-width: 440px) {
   .selected-count {
-    display: none;
-  }
-}
-
-@media (max-width: 360px) {
-  .picker-noun {
-    display: none;
-  }
-}
-
-@media (max-width: 460px) {
-  .mark-stack {
     display: none;
   }
 }
