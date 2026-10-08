@@ -1,11 +1,12 @@
-import { useMemo, useRef, useState, type CSSProperties, type PointerEvent } from "react";
+import { useEffect, useMemo, useRef, useState, type CSSProperties, type PointerEvent } from "react";
 import { scaleLinear } from "d3-scale";
 import { RotateCcw } from "lucide-react";
 import { EFFORT_LABEL, type Family, type Variant } from "../lib/families.ts";
 import type { SeriesColor } from "../lib/colors.ts";
-import { placeLabels, type Point } from "../lib/labels.ts";
-import { useFontsReady, usePresence, useSize, useTween } from "../lib/hooks.ts";
+import { stackLabels, type Point } from "../lib/labels.ts";
+import { useFontsReady, useGlide, usePresence, useSize, useTween } from "../lib/hooks.ts";
 import { formatCost, formatLogTick, formatPrice, formatTick, formatWhole } from "../lib/format.ts";
+import { CreatorMark } from "./CreatorMark.tsx";
 
 export type ScaleMode = "linear" | "log";
 
@@ -15,12 +16,23 @@ interface Props {
   scale: ScaleMode;
   /** Pareto-optimal variants, cheapest first. Empty when the frontier is off. */
   frontier: Variant[];
+  /** Families with a variant on the frontier. Null when the frontier is off. */
+  frontierFamilies: Set<string> | null;
   highlight: string | null;
   onReset: () => void;
 }
 
-const LABEL_FONT = '500 13px "Geist Variable", system-ui, sans-serif';
-const LABEL_HEIGHT = 16;
+const LABEL_FONT = '550 13px "Geist Variable", system-ui, sans-serif';
+/** Label column: preferred and tightest spacing between label centers. */
+const LABEL_ROW = 22;
+const LABEL_ROW_MIN = 17;
+const LABEL_MARK = 14;
+/** Longer names are cut off with an ellipsis. */
+const LABEL_MAX_WIDTH = 180;
+/** Room between the plot and the label column for leader lines to bend. */
+const BEND = 30;
+/** Narrower charts list the models in a legend below instead. */
+const COLUMN_MIN_WIDTH = 720;
 const HOVER_RADIUS = 40;
 const TIP_WIDTH = 236;
 /** Approximate advance of a 12px Geist Mono character, for keeping tick labels in bounds. */
@@ -99,24 +111,37 @@ function measure(text: string): number {
   return Math.ceil(measureCtx.measureText(text).width);
 }
 
-export function Chart({ families, colors, scale, frontier, highlight, onReset }: Props) {
+export function Chart({ families, colors, scale, frontier, frontierFamilies, highlight, onReset }: Props) {
   const wrapRef = useRef<HTMLDivElement>(null);
   const { width, height } = useSize(wrapRef);
   const fontsReady = useFontsReady();
   const [hover, setHover] = useState<{ family: Family; index: number } | null>(null);
+  const [labelHover, setLabelHover] = useState<string | null>(null);
 
   const narrow = width < 640;
-  const margin = { top: 40, right: narrow ? 12 : 20, bottom: 62, left: narrow ? 38 : 48 };
+  const column = width >= COLUMN_MIN_WIDTH && families.length > 0;
+  const gutter = useMemo(() => {
+    const widest = Math.max(0, ...families.map((f) => measure(f.name)));
+    return BEND + LABEL_MARK + 7 + Math.min(widest, LABEL_MAX_WIDTH) + 8;
+  }, [families, fontsReady]);
+
+  const domain = useMemo(() => targetDomain(families), [families]);
+  // The right margin rides along so the plot resizes smoothly as the label column grows or shrinks.
+  const target = [...domain.lin, ...domain.log, ...domain.y, scale === "log" ? 1 : 0, column ? gutter : narrow ? 12 : 20];
+  // The first measured frame lands in place instead of animating in from zero width.
+  const lastWidth = useRef(0);
+  useEffect(() => {
+    lastWidth.current = width;
+  });
+  const current = useTween(target, 700, lastWidth.current === 0);
+
+  const margin = { top: 40, right: current[7], bottom: 62, left: narrow ? 38 : 48 };
   const plot = {
     left: margin.left,
     top: margin.top,
     width: Math.max(0, width - margin.left - margin.right),
     height: Math.max(0, height - margin.top - margin.bottom),
   };
-
-  const domain = useMemo(() => targetDomain(families), [families]);
-  const target = [...domain.lin, ...domain.log, ...domain.y, scale === "log" ? 1 : 0];
-  const current = useTween(target);
   const map = makeMapper(current, plot);
 
   const series = usePresence(families);
@@ -139,32 +164,37 @@ export function Chart({ families, colors, scale, frontier, highlight, onReset }:
     return Math.min(Math.max(x, half), width - half);
   };
 
-  // Label layout is solved once for the destination state, then rides along with the animation.
-  const targetKey = target.join(",");
-  const labels = useMemo(() => {
-    if (plot.width === 0) return new Map<string, ReturnType<typeof placeLabels>[number]>();
-    const final = makeMapper(target, plot);
-    const dots: Point[] = [];
-    const segments: [Point, Point][] = [];
-    for (const f of families) {
-      const pts = f.variants.map((v) => final(v.costPerTask, v.intelligence));
-      dots.push(...pts);
-      for (let i = 1; i < pts.length; i++) segments.push([pts[i - 1], pts[i]]);
-    }
-    const requests = families.map((f) => {
-      const end = f.variants[f.variants.length - 1];
-      return {
-        id: f.id,
-        anchor: final(end.costPerTask, end.intelligence),
-        width: measure(f.name),
-        height: LABEL_HEIGHT,
-      };
-    });
-    const bounds = { x0: plot.left + 2, y0: plot.top - 30, x1: plot.left + plot.width - 2, y1: plot.top + plot.height - 2 };
-    return new Map(placeLabels(requests, dots, segments, bounds).map((l) => [l.id, l]));
-  }, [families, targetKey, plot.width, plot.height, plot.left, fontsReady]);
+  // Column labels line up with their line's end dot and spread apart where they'd collide.
+  // When there are too many to fit, the highest-scoring models keep theirs.
+  const endPoint = (f: Family) => {
+    const v = f.variants[f.variants.length - 1];
+    return map(v.costPerTask, v.intelligence);
+  };
+  const labelTop = 12;
+  const labelBottom = plot.top + plot.height - 6;
+  const labeled = column ? families.slice(0, Math.floor((labelBottom - labelTop) / LABEL_ROW_MIN) + 1) : [];
+  const ends = labeled.map(endPoint);
+  const row = Math.max(LABEL_ROW_MIN, Math.min(LABEL_ROW, (labelBottom - labelTop) / Math.max(1, labeled.length - 1)));
+  const stacked = stackLabels(ends.map((p) => p.y), row, labelTop, labelBottom);
+  // Offsets from the end dots glide, so labels pushed aside by a newcomer move instead of jumping.
+  const offsets = useGlide(new Map(labeled.map((f, k) => [f.id, stacked[k] - ends[k].y])));
+  const labeledIds = new Set(labeled.map((f) => f.id));
+  const plotRight = plot.left + plot.width;
+  const labelX = plotRight + BEND;
+  const columnLabels = column
+    ? series.flatMap(({ item: f, exiting }, i) => {
+        const offset = offsets.get(f.id);
+        if (offset === undefined || (!exiting && !labeledIds.has(f.id))) return [];
+        const end = endPoint(f);
+        return [{ f, exiting, i, end, y: end.y + offset }];
+      })
+    : [];
 
-  const focus = hover?.family.id ?? highlight;
+  const labelFocus = labelHover && families.some((f) => f.id === labelHover) ? labelHover : null;
+  const focus = hover?.family.id ?? labelFocus ?? highlight;
+  const offFrontier = (id: string) => frontierFamilies !== null && !frontierFamilies.has(id);
+  const seriesClass = (base: string, id: string, exiting = false) =>
+    `${base}${exiting ? " exiting" : ""}${focus === id ? " is-focus" : ""}${offFrontier(id) ? " off-frontier" : ""}`;
 
   function onPointerMove(e: PointerEvent<SVGSVGElement>) {
     const rect = e.currentTarget.getBoundingClientRect();
@@ -196,194 +226,216 @@ export function Chart({ families, colors, scale, frontier, highlight, onReset }:
   const tip = hoveredPoint && tooltipPlacement(hoveredPoint, width, height);
 
   return (
-    <div className="chart" ref={wrapRef}>
-      {width > 0 && (
-        <svg
-          width={width}
-          height={height}
-          className="chart-svg"
-          data-focus={focus ? "" : undefined}
-          onPointerMove={onPointerMove}
-          onPointerDown={onPointerMove}
-          onPointerLeave={(e) => e.pointerType !== "touch" && setHover(null)}
-          role="img"
-          aria-label="Intelligence Index versus cost per task for the selected models"
-        >
-          <defs>
-            <clipPath id="plot-clip">
-              <rect x={plot.left - 10} y={plot.top - 40} width={plot.width + 20} height={plot.height + 50} />
-            </clipPath>
-            <clipPath id="axis-clip">
-              <rect x={plot.left - 30} y={0} width={plot.width + 60} height={height} />
-            </clipPath>
-          </defs>
+    <>
+      <div className="chart" ref={wrapRef} data-focus={focus ? "" : undefined}>
+        {width > 0 && (
+          <svg
+            width={width}
+            height={height}
+            className="chart-svg"
+            onPointerMove={onPointerMove}
+            onPointerDown={onPointerMove}
+            onPointerLeave={(e) => e.pointerType !== "touch" && setHover(null)}
+            role="img"
+            aria-label="Intelligence Index versus cost per task for the selected models"
+          >
+            <defs>
+              <clipPath id="plot-clip">
+                <rect x={plot.left - 10} y={plot.top - 40} width={plot.width + 20} height={plot.height + 50} />
+              </clipPath>
+              <clipPath id="axis-clip">
+                <rect x={plot.left - 30} y={0} width={plot.width + 60} height={height} />
+              </clipPath>
+            </defs>
 
-          <g className="grid">
-            {yTicks.map((t) => {
-              const y = map(0, t).y;
-              return (
-                <g key={`y${t}`} className="tick-in">
-                  <line x1={plot.left} x2={plot.left + plot.width} y1={y} y2={y} />
-                  <text x={plot.left - 10} y={y} dy="0.32em" textAnchor="end" className="tick">
-                    {t}
-                  </text>
-                </g>
-              );
-            })}
-            <g clipPath="url(#axis-clip)">
-              {mix < 0.99 &&
-                linTicks.map((t) => {
-                  const x = map(t, 0).x;
-                  return (
-                    <g key={`l${t}`} className="tick-in" opacity={1 - mix}>
-                      <line x1={x} x2={x} y1={plot.top} y2={plot.top + plot.height} />
-                      <text x={tickX(x, formatTick(t, linStep))} y={plot.top + plot.height + 22} textAnchor="middle" className="tick">
-                        {formatTick(t, linStep)}
-                      </text>
-                    </g>
-                  );
-                })}
-              {mix > 0.01 &&
-                logTickValues.map((t) => {
-                  const x = map(t, 0).x;
-                  return (
-                    <g key={`g${t}`} className="tick-in" opacity={mix}>
-                      <line x1={x} x2={x} y1={plot.top} y2={plot.top + plot.height} />
-                      <text x={tickX(x, formatLogTick(t))} y={plot.top + plot.height + 22} textAnchor="middle" className="tick">
-                        {formatLogTick(t)}
-                      </text>
-                    </g>
-                  );
-                })}
-            </g>
-            <rect className="frame" x={plot.left} y={plot.top} width={plot.width} height={plot.height} />
-          </g>
-
-          <text className="axis-title" x={plot.left} y={plot.top - 18}>
-            Intelligence score <tspan className="axis-note">(multi-benchmark aggregation)</tspan>
-          </text>
-          <text className="axis-title" x={plot.left + plot.width / 2} y={height - 10} textAnchor="middle">
-            Average cost per task <tspan className="axis-note">(USD)</tspan>
-          </text>
-
-          <g clipPath="url(#plot-clip)">
-            {frontierPaths.map(({ item, exiting }) => (
-              <path
-                key={item.id}
-                className={`frontier${exiting ? " exiting" : ""}`}
-                d={linePath(item.points.map((v) => map(v.costPerTask, v.intelligence)))}
-                pathLength={1}
-              />
-            ))}
-            {series.map(({ item: f, exiting }, i) => {
-              const color = colors.get(f.id);
-              if (!color) return null;
-              const pts = f.variants.map((v) => map(v.costPerTask, v.intelligence));
-              const d = linePath(pts);
-              const isFocus = focus === f.id;
-              return (
-                <g
-                  key={f.id}
-                  className={`series${exiting ? " exiting" : ""}${isFocus ? " is-focus" : ""}`}
-                  style={{ "--i": stagger(i), "--c": color.stroke } as CSSProperties}
-                >
-                  {pts.length > 1 &&
-                    (f.superseded ? (
-                      <path d={d} className="line dashed" />
-                    ) : (
-                      <path d={d} className="line drawn" pathLength={1} />
-                    ))}
-                  {pts.map((p, j) => {
-                    const end = j === pts.length - 1;
-                    const active = hovered?.family.id === f.id && hovered.index === j;
+            <g className="grid">
+              {yTicks.map((t) => {
+                const y = map(0, t).y;
+                return (
+                  <g key={`y${t}`} className="tick-in">
+                    <line x1={plot.left} x2={plot.left + plot.width} y1={y} y2={y} />
+                    <text x={plot.left - 10} y={y} dy="0.32em" textAnchor="end" className="tick">
+                      {t}
+                    </text>
+                  </g>
+                );
+              })}
+              <g clipPath="url(#axis-clip)">
+                {mix < 0.99 &&
+                  linTicks.map((t) => {
+                    const x = map(t, 0).x;
                     return (
-                      <circle
-                        key={j}
-                        cx={p.x}
-                        cy={p.y}
-                        r={active ? 7 : end ? 5.5 : 4}
-                        className={`dot${end ? " end" : ""}${active ? " active" : ""}`}
-                        style={{ "--j": j } as CSSProperties}
-                      />
+                      <g key={`l${t}`} className="tick-in" opacity={1 - mix}>
+                        <line x1={x} x2={x} y1={plot.top} y2={plot.top + plot.height} />
+                        <text x={tickX(x, formatTick(t, linStep))} y={plot.top + plot.height + 22} textAnchor="middle" className="tick">
+                          {formatTick(t, linStep)}
+                        </text>
+                      </g>
                     );
                   })}
-                </g>
-              );
-            })}
-          </g>
+                {mix > 0.01 &&
+                  logTickValues.map((t) => {
+                    const x = map(t, 0).x;
+                    return (
+                      <g key={`g${t}`} className="tick-in" opacity={mix}>
+                        <line x1={x} x2={x} y1={plot.top} y2={plot.top + plot.height} />
+                        <text x={tickX(x, formatLogTick(t))} y={plot.top + plot.height + 22} textAnchor="middle" className="tick">
+                          {formatLogTick(t)}
+                        </text>
+                      </g>
+                    );
+                  })}
+              </g>
+              <rect className="frame" x={plot.left} y={plot.top} width={plot.width} height={plot.height} />
+            </g>
 
-          <g className="labels">
-            {series.map(({ item: f, exiting }, i) => {
-              const label = labels.get(f.id);
-              const color = colors.get(f.id);
-              if (!label || !color) return null;
-              const end = f.variants[f.variants.length - 1];
-              const a = map(end.costPerTask, end.intelligence);
-              const leadX = Math.min(Math.max(0, label.dx), label.dx + label.width);
-              const leadY = Math.min(Math.max(0, label.dy), label.dy + label.height);
-              return (
-                <g
+            <text className="axis-title" x={plot.left} y={plot.top - 18}>
+              Intelligence score <tspan className="axis-note">(multi-benchmark aggregation)</tspan>
+            </text>
+            <text className="axis-title" x={plot.left + plot.width / 2} y={height - 10} textAnchor="middle">
+              Average cost per task <tspan className="axis-note">(USD)</tspan>
+            </text>
+
+            <g className="leaders">
+              {columnLabels.map(({ f, exiting, i, end, y }) => (
+                <path
                   key={f.id}
-                  transform={`translate(${a.x},${a.y})`}
-                  className={`label${exiting ? " exiting" : ""}${focus === f.id ? " is-focus" : ""}`}
-                  style={{ "--i": stagger(i), "--c": color.label } as CSSProperties}
-                >
-                  {label.leader && <line className="leader" x1={0} y1={0} x2={leadX} y2={leadY} />}
-                  <text className="label-text" style={{ transform: `translate(${label.dx}px, ${label.dy + 12}px)` }}>
-                    {f.name}
-                  </text>
-                </g>
-              );
-            })}
-          </g>
-        </svg>
-      )}
+                  className={seriesClass("leader", f.id, exiting)}
+                  d={`M${end.x.toFixed(1)},${end.y.toFixed(1)}H${plotRight + 4}L${labelX - 12},${y.toFixed(1)}H${labelX - 5}`}
+                  style={{ "--i": stagger(i), "--c": colors.get(f.id)?.label } as CSSProperties}
+                />
+              ))}
+            </g>
 
-      {hovered && hoveredVariant && tip && (
-        <div className="tooltip" data-side={tip.side} style={{ transform: `translate(${tip.x}px, ${tip.y}px)` }} aria-hidden>
-          <div className="tooltip-inner">
-            <div className="tooltip-head">
-              <span className="swatch" style={{ background: colors.get(hovered.family.id)?.stroke }} />
-              <div>
-                <div className="tooltip-name">{hovered.family.name}</div>
-                <div className="tooltip-sub">
-                  {hoveredVariant.effort ? `${EFFORT_LABEL[hoveredVariant.effort]} effort` : hovered.family.creator.name}
+            <g clipPath="url(#plot-clip)">
+              {frontierPaths.map(({ item, exiting }) => (
+                <path
+                  key={item.id}
+                  className={`frontier${exiting ? " exiting" : ""}`}
+                  d={linePath(item.points.map((v) => map(v.costPerTask, v.intelligence)))}
+                  pathLength={1}
+                />
+              ))}
+              {series.map(({ item: f, exiting }, i) => {
+                const color = colors.get(f.id);
+                if (!color) return null;
+                const pts = f.variants.map((v) => map(v.costPerTask, v.intelligence));
+                const d = linePath(pts);
+                return (
+                  <g
+                    key={f.id}
+                    className={seriesClass("series", f.id, exiting)}
+                    style={{ "--i": stagger(i), "--c": color.stroke } as CSSProperties}
+                  >
+                    {pts.length > 1 &&
+                      (f.superseded ? (
+                        <path d={d} className="line dashed" />
+                      ) : (
+                        <path d={d} className="line drawn" pathLength={1} />
+                      ))}
+                    {pts.map((p, j) => {
+                      const end = j === pts.length - 1;
+                      const active = hovered?.family.id === f.id && hovered.index === j;
+                      return (
+                        <circle
+                          key={j}
+                          cx={p.x}
+                          cy={p.y}
+                          r={active ? 7 : end ? 5.5 : 4}
+                          className={`dot${end ? " end" : ""}${active ? " active" : ""}`}
+                          style={{ "--j": j } as CSSProperties}
+                        />
+                      );
+                    })}
+                  </g>
+                );
+              })}
+            </g>
+          </svg>
+        )}
+
+        {column && width > 0 && (
+          <div className="col-labels" aria-hidden>
+            {columnLabels.map(({ f, exiting, i, y }) => (
+              <div
+                key={f.id}
+                className={seriesClass("col-label", f.id, exiting)}
+                style={{ transform: `translate(${labelX}px, ${y}px)`, "--i": stagger(i), "--c": colors.get(f.id)?.label } as CSSProperties}
+                onPointerEnter={() => setLabelHover(f.id)}
+                onPointerLeave={() => setLabelHover(null)}
+              >
+                <CreatorMark name={f.creator.name} color={colors.get(f.id)?.creatorSwatch ?? "var(--text)"} size={LABEL_MARK} />
+                <span className="col-label-name" style={{ maxWidth: LABEL_MAX_WIDTH }}>
+                  {f.name}
+                </span>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {hovered && hoveredVariant && tip && (
+          <div className="tooltip" data-side={tip.side} style={{ transform: `translate(${tip.x}px, ${tip.y}px)` }} aria-hidden>
+            <div className="tooltip-inner">
+              <div className="tooltip-head">
+                <span className="swatch" style={{ background: colors.get(hovered.family.id)?.stroke }} />
+                <div>
+                  <div className="tooltip-name">{hovered.family.name}</div>
+                  <div className="tooltip-sub">
+                    {hoveredVariant.effort ? `${EFFORT_LABEL[hoveredVariant.effort]} effort` : hovered.family.creator.name}
+                  </div>
                 </div>
               </div>
-            </div>
-            <div className="tooltip-rows">
-              <span className="value">{hoveredVariant.intelligence.toFixed(1)}</span>
-              <span className="key">Intelligence Index</span>
-              <span className="value">{formatCost(hoveredVariant.costPerTask)}</span>
-              <span className="key">Cost per task</span>
-              {hoveredVariant.indexCost !== null && (
-                <>
-                  <span className="value">{formatWhole(hoveredVariant.indexCost)}</span>
-                  <span className="key">Full index run</span>
-                </>
-              )}
-              {hoveredVariant.priceInput !== null && hoveredVariant.priceOutput !== null && (
-                <>
-                  <span className="value">
-                    {formatPrice(hoveredVariant.priceInput)} / {formatPrice(hoveredVariant.priceOutput)}
-                  </span>
-                  <span className="key">Per 1M in / out</span>
-                </>
-              )}
+              <div className="tooltip-rows">
+                <span className="value">{hoveredVariant.intelligence.toFixed(1)}</span>
+                <span className="key">Intelligence Index</span>
+                <span className="value">{formatCost(hoveredVariant.costPerTask)}</span>
+                <span className="key">Cost per task</span>
+                {hoveredVariant.indexCost !== null && (
+                  <>
+                    <span className="value">{formatWhole(hoveredVariant.indexCost)}</span>
+                    <span className="key">Full index run</span>
+                  </>
+                )}
+                {hoveredVariant.priceInput !== null && hoveredVariant.priceOutput !== null && (
+                  <>
+                    <span className="value">
+                      {formatPrice(hoveredVariant.priceInput)} / {formatPrice(hoveredVariant.priceOutput)}
+                    </span>
+                    <span className="key">Per 1M in / out</span>
+                  </>
+                )}
+              </div>
             </div>
           </div>
-        </div>
-      )}
+        )}
 
-      {families.length === 0 && (
-        <div className="empty">
-          <p>No models selected</p>
-          <button type="button" className="pill-button" onClick={onReset}>
-            <RotateCcw size={14} strokeWidth={2} aria-hidden />
-            Show top 10
-          </button>
-        </div>
+        {families.length === 0 && (
+          <div className="empty">
+            <p>No models selected</p>
+            <button type="button" className="pill-button" onClick={onReset}>
+              <RotateCcw size={14} strokeWidth={2} aria-hidden />
+              Show top 10
+            </button>
+          </div>
+        )}
+      </div>
+
+      {!column && width > 0 && families.length > 0 && (
+        <ul className="legend" data-focus={focus ? "" : undefined} aria-hidden>
+          {families.map((f) => (
+            <li
+              key={f.id}
+              className={seriesClass("legend-item", f.id)}
+              style={{ "--c": colors.get(f.id)?.label } as CSSProperties}
+              onPointerEnter={() => setLabelHover(f.id)}
+              onPointerLeave={() => setLabelHover(null)}
+            >
+              <CreatorMark name={f.creator.name} color={colors.get(f.id)?.creatorSwatch ?? "var(--text)"} size={LABEL_MARK} />
+              <span className="legend-name">{f.name}</span>
+            </li>
+          ))}
+        </ul>
       )}
-    </div>
+    </>
   );
 }

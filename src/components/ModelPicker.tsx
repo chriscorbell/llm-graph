@@ -16,9 +16,23 @@ interface Props {
   onClear: () => void;
   onSelectAll: () => void;
   onHighlight: (id: string | null) => void;
+  /** Families on the Pareto frontier; the other shown ones fade back. Null when the frontier is off. */
+  frontierFamilies: Set<string> | null;
 }
 
-export function ModelPicker({ families, colors, visible, defaultCount, isDefault, onToggle, onReset, onClear, onSelectAll, onHighlight }: Props) {
+export function ModelPicker({
+  families,
+  colors,
+  visible,
+  defaultCount,
+  isDefault,
+  onToggle,
+  onReset,
+  onClear,
+  onSelectAll,
+  onHighlight,
+  frontierFamilies,
+}: Props) {
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
   const rootRef = useRef<HTMLDivElement>(null);
@@ -140,6 +154,7 @@ export function ModelPicker({ families, colors, visible, defaultCount, isDefault
                   role="option"
                   aria-selected={checked}
                   className="model-row"
+                  data-off-frontier={checked && frontierFamilies && !frontierFamilies.has(f.id) ? "" : undefined}
                   onClick={() => onToggle(f.id)}
                   onPointerEnter={() => checked && onHighlight(f.id)}
                   onFocus={() => checked && onHighlight(f.id)}

@@ -429,6 +429,19 @@ h1 {
   color: var(--muted);
 }
 
+.model-row > :not(.check) {
+  transition: opacity 0.2s ease;
+}
+
+.model-row[data-off-frontier] > :not(.check) {
+  opacity: 0.4;
+}
+
+.model-row[data-off-frontier]:hover > *,
+.model-row[data-off-frontier]:focus-visible > * {
+  opacity: 1;
+}
+
 .model-score {
   width: 36px;
   text-align: right;
@@ -605,7 +618,10 @@ h1 {
   font-weight: 300;
 }
 
-.series {
+.series,
+.leader,
+.col-label,
+.legend-item {
   transition: opacity 0.22s ease;
 }
 
@@ -619,12 +635,12 @@ h1 {
   transition: opacity 0.26s ease;
 }
 
-.chart-svg[data-focus] .frontier {
+.chart[data-focus] .frontier {
   opacity: 0.4;
 }
 
 .frontier.exiting,
-.chart-svg[data-focus] .frontier.exiting {
+.chart[data-focus] .frontier.exiting {
   opacity: 0;
 }
 
@@ -655,38 +671,86 @@ h1 {
   stroke-width: 3;
 }
 
-.chart-svg[data-focus] .series:not(.is-focus),
-.chart-svg[data-focus] .label:not(.is-focus) {
-  opacity: 0.14;
+.leader {
+  fill: none;
+  stroke: var(--c);
+  stroke-opacity: 0.22;
+  stroke-width: 1;
+  stroke-linejoin: round;
 }
 
-.series.exiting,
-.label.exiting,
-.chart-svg[data-focus] .series.exiting {
-  opacity: 0;
-}
-
-.label {
-  transition: opacity 0.22s ease;
+/* HTML rather than SVG so labels can carry lab logos. Only the labels take the pointer. */
+.col-labels {
+  position: absolute;
+  inset: 0;
   pointer-events: none;
 }
 
-.label-text {
-  fill: var(--c);
+.col-label {
+  position: absolute;
+  left: 0;
+  top: 0;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  height: 20px;
+  margin-top: -10px;
+  color: var(--c);
   font-size: 13px;
   font-weight: 550;
-  /* halo keeps labels legible where they cross other lines */
-  stroke: var(--bg);
-  stroke-width: 4px;
-  stroke-linejoin: round;
-  paint-order: stroke;
-  transition: transform 0.4s var(--ease-out);
+  white-space: nowrap;
+  pointer-events: auto;
 }
 
-.leader {
-  stroke: var(--c);
-  stroke-opacity: 0.45;
-  stroke-width: 1;
+.col-label-name,
+.legend-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.legend {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: 10px 16px;
+  margin: 10px 0 0;
+  padding: 0;
+  list-style: none;
+  animation: fade 0.5s ease 0.3s both;
+}
+
+.legend-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  color: var(--c);
+  font-size: 13px;
+  font-weight: 550;
+  white-space: nowrap;
+}
+
+/* Pareto on: models with nothing on the frontier fade back. */
+.series.off-frontier:not(.is-focus),
+.leader.off-frontier:not(.is-focus),
+.col-label.off-frontier:not(.is-focus),
+.legend-item.off-frontier:not(.is-focus) {
+  opacity: 0.28;
+}
+
+.chart[data-focus] .series:not(.is-focus),
+.chart[data-focus] .leader:not(.is-focus),
+.chart[data-focus] .col-label:not(.is-focus),
+.legend[data-focus] .legend-item:not(.is-focus) {
+  opacity: 0.14;
+}
+
+.chart .series.exiting,
+.chart .leader.exiting,
+.chart .col-label.exiting,
+.chart[data-focus] .series.exiting,
+.chart[data-focus] .leader.exiting,
+.chart[data-focus] .col-label.exiting {
+  opacity: 0;
 }
 
 @media (prefers-reduced-motion: no-preference) {
@@ -709,7 +773,7 @@ h1 {
     animation-delay: calc(var(--i) * 55ms + var(--j) * 60ms + 120ms);
   }
 
-  .label-text,
+  .col-label,
   .leader {
     animation: fade 0.5s ease backwards;
     animation-delay: calc(var(--i) * 55ms + 380ms);

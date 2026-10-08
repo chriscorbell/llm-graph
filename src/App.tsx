@@ -71,6 +71,9 @@ export default function App() {
     [visible, prefs.pareto],
   );
   const frontierIds = new Set(frontier.map((v) => v.id));
+  const frontierFamilies = prefs.pareto
+    ? new Set(visible.filter((f) => f.variants.some((v) => frontierIds.has(v.id))).map((f) => f.id))
+    : null;
 
   const toggle = useCallback(
     (id: string) =>
@@ -103,6 +106,7 @@ export default function App() {
             onClear={clear}
             onSelectAll={selectAll}
             onHighlight={setHighlight}
+            frontierFamilies={frontierFamilies}
           />
           <ParetoToggle value={prefs.pareto} onChange={(pareto) => setPrefs((p) => ({ ...p, pareto }))} />
           <ScaleToggle value={prefs.scale} onChange={(scale) => setPrefs((p) => ({ ...p, scale }))} />
@@ -114,6 +118,7 @@ export default function App() {
         colors={colors}
         scale={prefs.scale}
         frontier={frontier}
+        frontierFamilies={frontierFamilies}
         highlight={highlight}
         onReset={reset}
       />
