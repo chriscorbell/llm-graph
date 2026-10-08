@@ -1,44 +1,15 @@
 import { useEffect, useMemo, useRef, useState, type KeyboardEvent } from "react";
-import { Check, CheckCheck, ChevronDown, RotateCcw, Search, X } from "lucide-react";
-import type { Family } from "../lib/families.ts";
-import type { SeriesColor } from "../lib/colors.ts";
+import { ChevronDown } from "lucide-react";
 import { CreatorMark } from "./CreatorMark.tsx";
+import { ModelPanel, type ModelSelection } from "./ModelPanel.tsx";
 
-interface Props {
-  families: Family[];
-  colors: Map<string, SeriesColor>;
-  visible: Set<string>;
-  defaultCount: number;
-  /** Selection is exactly the default top models, so resetting would do nothing. */
-  isDefault: boolean;
-  onToggle: (id: string) => void;
-  onReset: () => void;
-  onClear: () => void;
-  onSelectAll: () => void;
-  onHighlight: (id: string | null) => void;
-  /** Families on the Pareto frontier; the other shown ones fade back. Null when the frontier is off. */
-  frontierFamilies: Set<string> | null;
-}
-
-export function ModelPicker({
-  families,
-  colors,
-  visible,
-  defaultCount,
-  isDefault,
-  onToggle,
-  onReset,
-  onClear,
-  onSelectAll,
-  onHighlight,
-  frontierFamilies,
-}: Props) {
+/** Header menu for choosing models, used where the window is too narrow for the sidebar. */
+export function ModelPicker(props: ModelSelection) {
+  const { families, colors, visible, onHighlight } = props;
   const [open, setOpen] = useState(false);
-  const [query, setQuery] = useState("");
   const rootRef = useRef<HTMLDivElement>(null);
   const triggerRef = useRef<HTMLButtonElement>(null);
   const searchRef = useRef<HTMLInputElement>(null);
-  const listRef = useRef<HTMLUListElement>(null);
 
   useEffect(() => {
     if (!open) return;
@@ -57,12 +28,6 @@ export function ModelPicker({
     if (!open) onHighlight(null);
   }, [open, onHighlight]);
 
-  const filtered = useMemo(() => {
-    const q = query.trim().toLowerCase();
-    if (!q) return families;
-    return families.filter((f) => f.name.toLowerCase().includes(q) || f.creator.name.toLowerCase().includes(q));
-  }, [families, query]);
-
   const visibleCreators = useMemo(() => {
     const seen = new Map<string, { name: string; color: string }>();
     for (const f of families) {
@@ -74,24 +39,10 @@ export function ModelPicker({
   }, [families, visible, colors]);
 
   function onKeyDown(e: KeyboardEvent) {
-    if (e.key === "Escape") {
-      e.preventDefault();
-      setOpen(false);
-      triggerRef.current?.focus();
-      return;
-    }
-    if (e.key !== "ArrowDown" && e.key !== "ArrowUp") return;
-    const options = [...(listRef.current?.querySelectorAll<HTMLButtonElement>("button[role=option]") ?? [])];
-    if (options.length === 0) return;
+    if (e.key !== "Escape") return;
     e.preventDefault();
-    const index = options.indexOf(document.activeElement as HTMLButtonElement);
-    if (index === -1) {
-      (e.key === "ArrowDown" ? options[0] : options[options.length - 1]).focus();
-    } else if (e.key === "ArrowUp" && index === 0) {
-      searchRef.current?.focus();
-    } else {
-      options[Math.min(options.length - 1, index + (e.key === "ArrowDown" ? 1 : -1))].focus();
-    }
+    setOpen(false);
+    triggerRef.current?.focus();
   }
 
   return (
@@ -119,88 +70,7 @@ export function ModelPicker({
       </button>
 
       <div className="popover" data-open={open || undefined} role="dialog" aria-label="Choose models" inert={!open}>
-        <label className="search">
-          <Search size={16} strokeWidth={2} aria-hidden />
-          <input
-            ref={searchRef}
-            type="text"
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            placeholder="Search models or labs"
-            aria-label="Search models or labs"
-            spellCheck={false}
-            autoComplete="off"
-          />
-          {query && (
-            <button type="button" className="icon-button" onClick={() => setQuery("")} aria-label="Clear search">
-              <X size={14} strokeWidth={2} />
-            </button>
-          )}
-        </label>
-
-        <div className="popover-head" aria-hidden>
-          <span>Model</span>
-          <span>Score</span>
-        </div>
-
-        <ul className="model-list" ref={listRef} role="listbox" aria-multiselectable onPointerLeave={() => onHighlight(null)}>
-          {filtered.map((f) => {
-            const checked = visible.has(f.id);
-            const color = colors.get(f.id)!;
-            return (
-              <li key={f.id}>
-                <button
-                  type="button"
-                  role="option"
-                  aria-selected={checked}
-                  className="model-row"
-                  data-off-frontier={checked && frontierFamilies && !frontierFamilies.has(f.id) ? "" : undefined}
-                  onClick={() => onToggle(f.id)}
-                  onPointerEnter={() => checked && onHighlight(f.id)}
-                  onFocus={() => checked && onHighlight(f.id)}
-                >
-                  <span className="check" aria-hidden>
-                    <Check size={12} strokeWidth={3} />
-                  </span>
-                  <CreatorMark name={f.creator.name} color={color.creatorSwatch} />
-                  <span className="model-text">
-                    <span className="model-name">{f.name}</span>
-                    <span className="model-creator">{f.creator.name}</span>
-                  </span>
-                  <span className="model-score">{f.best.intelligence.toFixed(1)}</span>
-                </button>
-              </li>
-            );
-          })}
-          {filtered.length === 0 && <li className="no-results">No models match "{query}"</li>}
-        </ul>
-
-        <div className="popover-foot">
-          <span className="selected-count">{visible.size} selected</span>
-          <button
-            type="button"
-            className="pill-button"
-            onClick={onSelectAll}
-            disabled={visible.size === families.length}
-          >
-            <CheckCheck size={14} strokeWidth={2} aria-hidden />
-            Select all
-          </button>
-          <button type="button" className="pill-button" onClick={onClear} disabled={visible.size === 0}>
-            <X size={14} strokeWidth={2} aria-hidden />
-            Clear
-          </button>
-          <button
-            type="button"
-            className="pill-button"
-            onClick={onReset}
-            disabled={isDefault}
-            title={`Back to the top ${defaultCount} current models`}
-          >
-            <RotateCcw size={14} strokeWidth={2} aria-hidden />
-            Reset
-          </button>
-        </div>
+        <ModelPanel {...props} searchRef={searchRef} />
       </div>
     </div>
   );
