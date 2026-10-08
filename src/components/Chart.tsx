@@ -92,6 +92,13 @@ function makeMapper(
   };
 }
 
+/** Short stable token for an arbitrary string, for use in element ids. */
+const hash = (s: string) => {
+  let h = 0;
+  for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) | 0;
+  return (h >>> 0).toString(36);
+};
+
 const linePath = (pts: Point[]) => pts.map((p, j) => `${j ? "L" : "M"}${p.x.toFixed(1)},${p.y.toFixed(1)}`).join("");
 
 /** Beside the point when there's room, otherwise above or below it (narrow screens). */
@@ -149,6 +156,7 @@ export function Chart({ families, colors, scale, frontier, frontierFamilies, hig
   const mountedAt = useRef(performance.now());
   const stagger = (i: number) => (performance.now() - mountedAt.current < 1500 ? i : 0);
 
+  const frontierIds = new Set(frontier.map((v) => v.id));
   // Keyed by its points, so a changed frontier draws in fresh while the old one fades out.
   const frontierPaths = usePresence(frontier.length > 1 ? [{ id: frontier.map((v) => v.id).join("|"), points: frontier }] : []);
 
@@ -308,48 +316,66 @@ export function Chart({ families, colors, scale, frontier, frontierFamilies, hig
             </g>
 
             <g clipPath="url(#plot-clip)">
-              {frontierPaths.map(({ item, exiting }) => (
-                <path
-                  key={item.id}
-                  className={`frontier${exiting ? " exiting" : ""}`}
-                  d={linePath(item.points.map((v) => map(v.costPerTask, v.intelligence)))}
-                  pathLength={1}
-                />
-              ))}
-              {series.map(({ item: f, exiting }, i) => {
-                const color = colors.get(f.id);
-                if (!color) return null;
-                const pts = f.variants.map((v) => map(v.costPerTask, v.intelligence));
-                const d = linePath(pts);
+              <g>
+                {series.map(({ item: f, exiting }, i) => {
+                  const color = colors.get(f.id);
+                  if (!color || f.variants.length < 2) return null;
+                  const d = linePath(f.variants.map((v) => map(v.costPerTask, v.intelligence)));
+                  return (
+                    <g
+                      key={f.id}
+                      className={seriesClass("series", f.id, exiting)}
+                      style={{ "--i": stagger(i), "--c": color.stroke } as CSSProperties}
+                    >
+                      {f.superseded ? <path d={d} className="line dashed" /> : <path d={d} className="line drawn" pathLength={1} />}
+                    </g>
+                  );
+                })}
+              </g>
+
+              {/* Above the lines and under the dots, so the dashes run dot to dot. */}
+              {frontierPaths.map(({ item, exiting }) => {
+                const d = linePath(item.points.map((v) => map(v.costPerTask, v.intelligence)));
+                const maskId = `frontier-${hash(item.id)}`;
                 return (
-                  <g
-                    key={f.id}
-                    className={seriesClass("series", f.id, exiting)}
-                    style={{ "--i": stagger(i), "--c": color.stroke } as CSSProperties}
-                  >
-                    {pts.length > 1 &&
-                      (f.superseded ? (
-                        <path d={d} className="line dashed" />
-                      ) : (
-                        <path d={d} className="line drawn" pathLength={1} />
-                      ))}
-                    {pts.map((p, j) => {
-                      const end = j === pts.length - 1;
-                      const active = hovered?.family.id === f.id && hovered.index === j;
-                      return (
-                        <circle
-                          key={j}
-                          cx={p.x}
-                          cy={p.y}
-                          r={active ? 7 : end ? 5.5 : 4}
-                          className={`dot${end ? " end" : ""}${active ? " active" : ""}`}
-                          style={{ "--j": j } as CSSProperties}
-                        />
-                      );
-                    })}
+                  <g key={item.id} className={`frontier${exiting ? " exiting" : ""}`}>
+                    <mask id={maskId} maskUnits="userSpaceOnUse" x={0} y={0} width={width} height={height}>
+                      <path d={d} className="frontier-reveal" pathLength={1} />
+                    </mask>
+                    <path d={d} className="frontier-line" mask={`url(#${maskId})`} />
                   </g>
                 );
               })}
+
+              <g>
+                {series.map(({ item: f, exiting }, i) => {
+                  const color = colors.get(f.id);
+                  if (!color) return null;
+                  return (
+                    <g
+                      key={f.id}
+                      className={seriesClass("series", f.id, exiting)}
+                      style={{ "--i": stagger(i), "--c": color.stroke } as CSSProperties}
+                    >
+                      {f.variants.map((v, j) => {
+                        const p = map(v.costPerTask, v.intelligence);
+                        const end = j === f.variants.length - 1;
+                        const active = hovered?.family.id === f.id && hovered.index === j;
+                        return (
+                          <circle
+                            key={j}
+                            cx={p.x}
+                            cy={p.y}
+                            r={active ? 7 : frontierIds.has(v.id) ? 6 : end ? 5.5 : 4}
+                            className={`dot${end ? " end" : ""}${active ? " active" : ""}`}
+                            style={{ "--j": j } as CSSProperties}
+                          />
+                        );
+                      })}
+                    </g>
+                  );
+                })}
+              </g>
             </g>
           </svg>
         )}

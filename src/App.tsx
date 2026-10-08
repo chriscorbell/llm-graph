@@ -7,6 +7,7 @@ import { paretoFrontier } from "./lib/pareto.ts";
 import { formatCost, formatDateTime } from "./lib/format.ts";
 import { Chart, type ScaleMode } from "./components/Chart.tsx";
 import { ModelPicker } from "./components/ModelPicker.tsx";
+import { ModelPanel, type ModelSelection } from "./components/ModelPanel.tsx";
 import { ScaleToggle } from "./components/ScaleToggle.tsx";
 import { ParetoToggle } from "./components/ParetoToggle.tsx";
 
@@ -90,81 +91,95 @@ export default function App() {
   const clear = useCallback(() => setPrefs((p) => ({ ...p, base: "none", overrides: {} })), []);
   const selectAll = useCallback(() => setPrefs((p) => ({ ...p, base: "all", overrides: {} })), []);
 
+  const selection: ModelSelection = {
+    families,
+    colors,
+    visible: visibleIds,
+    defaultCount: DEFAULT_COUNT,
+    isDefault: prefs.base === "top" && Object.keys(prefs.overrides).length === 0,
+    onToggle: toggle,
+    onReset: reset,
+    onClear: clear,
+    onSelectAll: selectAll,
+    onHighlight: setHighlight,
+    frontierFamilies,
+  };
+
   return (
-    <main className="page">
-      <header className="bar">
-        <h1>Model Index</h1>
-        <div className="controls">
-          <ModelPicker
-            families={families}
-            colors={colors}
-            visible={visibleIds}
-            defaultCount={DEFAULT_COUNT}
-            isDefault={prefs.base === "top" && Object.keys(prefs.overrides).length === 0}
-            onToggle={toggle}
-            onReset={reset}
-            onClear={clear}
-            onSelectAll={selectAll}
-            onHighlight={setHighlight}
-            frontierFamilies={frontierFamilies}
-          />
-          <ParetoToggle value={prefs.pareto} onChange={(pareto) => setPrefs((p) => ({ ...p, pareto }))} />
-          <ScaleToggle value={prefs.scale} onChange={(scale) => setPrefs((p) => ({ ...p, scale }))} />
+    <div className="app">
+      <main className="page">
+        <header className="bar">
+          <h1>Model Index</h1>
+          <div className="controls">
+            <ModelPicker {...selection} />
+            <ParetoToggle value={prefs.pareto} onChange={(pareto) => setPrefs((p) => ({ ...p, pareto }))} />
+            <ScaleToggle value={prefs.scale} onChange={(scale) => setPrefs((p) => ({ ...p, scale }))} />
+          </div>
+        </header>
+
+        <Chart
+          families={visible}
+          colors={colors}
+          scale={prefs.scale}
+          frontier={frontier}
+          frontierFamilies={frontierFamilies}
+          highlight={highlight}
+          onReset={reset}
+        />
+
+        <footer className="foot">
+          <p>
+            Each dot is a specific reasoning effort level. Dashed lines represent older models.
+            {prefs.pareto && " The white dashed line traces the Pareto frontier."}
+          </p>
+          <p>
+            Data from{" "}
+            <a href="https://artificialanalysis.ai/" target="_blank" rel="noreferrer">
+              Artificial Analysis
+            </a>
+            , updated {formatDateTime(dataset.fetchedAt)}
+          </p>
+        </footer>
+
+        {/* Tables ignore width/height/overflow, so the visually-hidden wrapper does the clipping. */}
+        <div className="sr-only">
+          <table>
+            <caption>Selected models by reasoning effort</caption>
+            <thead>
+              <tr>
+                <th scope="col">Model</th>
+                <th scope="col">Effort</th>
+                <th scope="col">Intelligence Index</th>
+                <th scope="col">Cost per task</th>
+                {prefs.pareto && <th scope="col">On Pareto frontier</th>}
+              </tr>
+            </thead>
+            <tbody>
+              {visible.flatMap((f) =>
+                f.variants.map((v) => (
+                  <tr key={v.id}>
+                    <th scope="row">{f.name}</th>
+                    <td>{v.effort ? EFFORT_LABEL[v.effort] : "Default"}</td>
+                    <td>{v.intelligence.toFixed(1)}</td>
+                    <td>{formatCost(v.costPerTask)}</td>
+                    {prefs.pareto && <td>{frontierIds.has(v.id) ? "Yes" : "No"}</td>}
+                  </tr>
+                )),
+              )}
+            </tbody>
+          </table>
         </div>
-      </header>
+      </main>
 
-      <Chart
-        families={visible}
-        colors={colors}
-        scale={prefs.scale}
-        frontier={frontier}
-        frontierFamilies={frontierFamilies}
-        highlight={highlight}
-        onReset={reset}
-      />
-
-      <footer className="foot">
-        <p>
-          Each dot is a specific reasoning effort level. Dashed lines represent older models.
-          {prefs.pareto && " The gray band traces the Pareto frontier."}
-        </p>
-        <p>
-          Data from{" "}
-          <a href="https://artificialanalysis.ai/" target="_blank" rel="noreferrer">
-            Artificial Analysis
-          </a>
-          , updated {formatDateTime(dataset.fetchedAt)}
-        </p>
-      </footer>
-
-      {/* Tables ignore width/height/overflow, so the visually-hidden wrapper does the clipping. */}
-      <div className="sr-only">
-        <table>
-          <caption>Selected models by reasoning effort</caption>
-          <thead>
-            <tr>
-              <th scope="col">Model</th>
-              <th scope="col">Effort</th>
-              <th scope="col">Intelligence Index</th>
-              <th scope="col">Cost per task</th>
-              {prefs.pareto && <th scope="col">On Pareto frontier</th>}
-            </tr>
-          </thead>
-          <tbody>
-            {visible.flatMap((f) =>
-              f.variants.map((v) => (
-                <tr key={v.id}>
-                  <th scope="row">{f.name}</th>
-                  <td>{v.effort ? EFFORT_LABEL[v.effort] : "Default"}</td>
-                  <td>{v.intelligence.toFixed(1)}</td>
-                  <td>{formatCost(v.costPerTask)}</td>
-                  {prefs.pareto && <td>{frontierIds.has(v.id) ? "Yes" : "No"}</td>}
-                </tr>
-              )),
-            )}
-          </tbody>
-        </table>
-      </div>
-    </main>
+      <aside className="sidebar" aria-label="Models">
+        <div className="sidebar-head">
+          <h2>Models</h2>
+          <span className="sidebar-count">
+            {visibleIds.size} of {families.length}
+          </span>
+        </div>
+        <ModelPanel {...selection} shortcut />
+      </aside>
+    </div>
   );
 }

@@ -49,6 +49,84 @@ button {
   flex-direction: column;
 }
 
+/* Sidebar: the model list, always open, on windows wide enough to spare the room. */
+
+.sidebar {
+  display: none;
+}
+
+@media (min-width: 1200px) {
+  .app {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 320px;
+  }
+
+  .page {
+    padding-right: 32px;
+  }
+
+  .picker {
+    display: none;
+  }
+
+  .sidebar {
+    position: sticky;
+    top: 0;
+    display: flex;
+    flex-direction: column;
+    height: 100dvh;
+    border-left: 1px solid var(--border);
+    animation: fade 0.6s ease 0.1s both;
+  }
+}
+
+/* Centered on the header row beside it. */
+.sidebar-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 80px;
+  padding: 28px 20px 12px;
+}
+
+.sidebar-head h2 {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.sidebar-count {
+  font-size: 13px;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.sidebar .panel {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+}
+
+.sidebar .search {
+  margin: 0 12px 8px;
+}
+
+.sidebar .model-list {
+  flex: 1;
+  max-height: none;
+}
+
+/* The head above already shows the count. */
+.sidebar .selected-count {
+  display: none;
+}
+
+.sidebar .panel-foot {
+  justify-content: flex-start;
+  padding: 10px 12px 16px;
+}
+
 /* Header */
 
 .bar {
@@ -221,6 +299,19 @@ h1 {
   color: var(--muted);
 }
 
+.search-key {
+  display: grid;
+  place-items: center;
+  min-width: 20px;
+  height: 20px;
+  padding: 0 5px;
+  border: 1px solid var(--border-strong);
+  border-radius: 5px;
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--muted);
+}
+
 .icon-button {
   display: grid;
   place-items: center;
@@ -234,7 +325,7 @@ h1 {
   cursor: pointer;
 }
 
-.popover-head {
+.panel-head {
   display: flex;
   justify-content: space-between;
   padding: 2px 20px 6px 76px;
@@ -242,7 +333,7 @@ h1 {
   color: var(--muted);
 }
 
-.popover-foot {
+.panel-foot {
   display: flex;
   align-items: center;
   justify-content: flex-end;
@@ -434,7 +525,7 @@ h1 {
 }
 
 .model-row[data-off-frontier] > :not(.check) {
-  opacity: 0.4;
+  opacity: 0.5;
 }
 
 .model-row[data-off-frontier]:hover > *,
@@ -626,13 +717,24 @@ h1 {
 }
 
 .frontier {
+  transition: opacity 0.26s ease;
+}
+
+.frontier-line {
+  fill: none;
+  stroke: var(--text);
+  stroke-width: 2;
+  stroke-dasharray: 7 5;
+  stroke-linejoin: round;
+}
+
+/* Masks the dashed line so it can draw in like the solid ones. */
+.frontier-reveal {
   fill: none;
   stroke: #fff;
-  stroke-opacity: 0.1;
-  stroke-width: 14;
+  stroke-width: 10;
   stroke-linejoin: round;
   stroke-linecap: round;
-  transition: opacity 0.26s ease;
 }
 
 .chart[data-focus] .frontier {
@@ -764,7 +866,7 @@ h1 {
     animation-delay: calc(var(--i) * 55ms);
   }
 
-  .frontier:not(.exiting) {
+  .frontier:not(.exiting) .frontier-reveal {
     animation: draw 0.9s var(--ease-out) backwards;
   }
 
